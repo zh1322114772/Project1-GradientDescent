@@ -48,7 +48,7 @@ class C1Differentiable:
 
     def get_history(self):
         return np.array(self.__history)
-    
+
     def add_history(self, x):
         self.__history.append(x)
 
@@ -69,7 +69,8 @@ class C2Differentiable(C1Differentiable):
     def second_derivative(self, x):
         pass
 
-# In[28]:
+
+# In[ ]:
 
 
 class GradientDescent:
@@ -86,19 +87,20 @@ class GradientDescent:
 
     def optimize(self):
         self.f.clear_history()
-        
+
         for _ in range(self.max_iter):
             grad = self.f.derivative(self.x)
             y = self.f.forward(self.x)
 
             new_x = self.x - self.alpha * grad
             self.f.add_history([self.x[0], self.x[1], y])
-            
+
             if abs(self.f.forward(new_x) - self.f.forward(self.x)) < self.tol:
                 break
             self.x = new_x
 
         return self.x
+
 
 # # Methods Section - Newton's Method 
 # 
@@ -139,7 +141,7 @@ class GradientDescentNewton:
 
     def __init__(self, f: C1Differentiable, x0, tol=1e-6, max_iter=2000):
         super().__init__()
-        
+
         self.f = f # function to minimize
         self.x = x0 # initial point
         self.tol = tol # tolerance for stopping criterion
@@ -155,13 +157,14 @@ class GradientDescentNewton:
 
             new_x = self.x - H_inverse @ grad
             self.f.add_history([self.x[0], self.x[1], y])
-            
+
             if abs(self.f.forward(new_x) - self.f.forward(self.x)) < self.tol:
                 break
 
             self.x = new_x
-            
+
         return self.x
+
 
 # # Methods Section - AdaGrad
 # 
@@ -209,16 +212,18 @@ class GradientDescentNewton:
 class AdaGrad:
     """AdaGrad optimizer."""
 
-    def __init__(self, f: C1Differentiable, x0, eta=0.1, tol=1e-6, max_iter=2000):
+    def __init__(self, f: C1Differentiable, x0, alpha=0.1, tol=1e-6, max_iter=2000):
         super().__init__()
-        
+
         self.f = f # function to minimize
-        self.x = x0 # initial point
-        self.eta = eta # initial learning rate
+        self.x = np.asarray(x0, dtype=np.float64)
+        self.G = np.zeros_like(self.x, dtype=np.float64)
+        # self.x = x0 # initial point
+        self.alpha = alpha # initial learning rate
         self.tol = tol # tolerance for stopping criterion
         self.max_iter = max_iter # maximum number of iterations
         self.epsilon = 1e-8 # small constant to avoid singularity
-        self.G = np.zeros_like(x0) # sum of squared historical gradients
+        # self.G = np.zeros_like(x0) # sum of squared historical gradients
 
     def optimize(self):
         self.f.clear_history()
@@ -229,15 +234,16 @@ class AdaGrad:
 
             self.G += grad * grad
             adjusted_grad = grad / (np.sqrt(self.G) + self.epsilon)
-            new_x = self.x - self.eta * adjusted_grad
+            new_x = self.x - self.alpha * adjusted_grad
             self.f.add_history([self.x[0], self.x[1], y])
-            
+
             if abs(self.f.forward(new_x) - self.f.forward(self.x)) < self.tol:
                 break
 
             self.x = new_x
-            
+
         return self.x
+
 
 # # Methods Section - Adam
 # 
@@ -312,56 +318,80 @@ class AdaGrad:
 
 
 class Adam:
-    """Adam optimizer."""
-
-    def __init__(self, f: C1Differentiable, x0, eta=0.1, tol=1e-6, max_iter=2000):
+    def __init__(self, f: C1Differentiable, x0, alpha=0.01, beta1=0.9, beta2=0.999, eps=1e-8, tol=1e-6, max_iter=2000):
         super().__init__()
-        
-        self.f = f # function to minimize
-        self.x = x0 # initial point
-        self.eta = eta # initial learning rate
-        self.tol = tol # tolerance for stopping criterion
-        self.max_iter = max_iter # maximum number of iterations
-        self.epsilon = 1e-8 # small constant to avoid singularity
-        self.G = np.zeros_like(x0) # sum of squared historical gradients
+        self.f, self.x = f, x0
+        self.alpha, self.beta1, self.beta2 = alpha, beta1, beta2
+        self.eps, self.tol, self.max_iter = eps, tol, max_iter
 
     def optimize(self):
         self.f.clear_history()
-
+        m = np.zeros_like(self.x); v = np.zeros_like(self.x); t = 0
         for _ in range(self.max_iter):
-            grad = self.f.derivative(self.x)
-            y = self.f.forward(self.x)
-
-            self.G += grad * grad
-            adjusted_grad = grad / (np.sqrt(self.G) + self.epsilon)
-            new_x = self.x - self.eta * adjusted_grad
+            g = self.f.derivative(self.x); y = self.f.forward(self.x); t += 1
+            m = self.beta1*m + (1-self.beta1)*g
+            v = self.beta2*v + (1-self.beta2)*(g*g)
+            m_hat = m / (1 - self.beta1**t)
+            v_hat = v / (1 - self.beta2**t)
+            new_x = self.x - self.alpha * m_hat / (np.sqrt(v_hat) + self.eps)
             self.f.add_history([self.x[0], self.x[1], y])
-            
-            if abs(self.f.forward(new_x) - self.f.forward(self.x)) < self.tol:
-                break
-
+            if abs(self.f.forward(new_x) - y) < self.tol: break
             self.x = new_x
-            
         return self.x
 
-# # Results Section - Convex bowl
 
-# We first define a Convex bowl class. Then, we selected three random initial points $(-1, 2), (-2, 0.5)$ and $(3, 3)$ with step sizes of $0.1, 0.01, 0.001$
 
-# In[30]:
+
+
 
 
 class ConvexBowl(C2Differentiable):
     """Convex bowl function."""
-
     def forward(self, x):
         return x[0]**2 + x[1]**2
-
     def derivative(self, x):
         return np.array([2*x[0], 2*x[1]])
-    
     def second_derivative(self, x):
         return np.array([[2, 0], [0, 2]])
 
-# In[31]:
 
+class Rosenbrock(C2Differentiable):
+    """Rosenbrock (banana valley) function.
+    f(x,y) = (1-x)² + 100(y-x²)²
+    """
+    def forward(self, x):
+        return (1 - x[0])**2 + 100 * (x[1] - x[0]**2)**2
+    
+    def derivative(self, x):
+        df_dx = -2 * (1 - x[0]) - 400 * x[0] * (x[1] - x[0]**2)
+        df_dy = 200 * (x[1] - x[0]**2)
+        return np.array([df_dx, df_dy])
+    
+    #! NOT SURE IF THIS IS CORRECT SECOND DERIVATIVE
+    def second_derivative(self, x):
+        d2f_dx2 = 2 - 400 * x[1] + 1200 * x[0]**2
+        d2f_dy2 = 200
+        d2f_dxdy = -400 * x[0]
+        
+        return np.array([[d2f_dx2, d2f_dxdy], 
+                        [d2f_dxdy, d2f_dy2]])
+
+class CosineBumps(C2Differentiable):
+    """Multimodal cosine bumps.
+    f(x,y) = x² + y² + 10cos(x) + 10cos(y)
+    """
+    def forward(self, x):
+        return x[0]**2 + x[1]**2 + 10*np.cos(x[0]) + 10*np.cos(x[1])
+    
+    def derivative(self, x):
+        df_dx = 2*x[0] - 10*np.sin(x[0])
+        df_dy = 2*x[1] - 10*np.sin(x[1])
+        return np.array([df_dx, df_dy])
+    
+    def second_derivative(self, x):
+        d2f_dx2 = 2 - 10*np.cos(x[0])
+        d2f_dy2 = 2 - 10*np.cos(x[1])
+        d2f_dxdy = 0 
+        
+        return np.array([[d2f_dx2, d2f_dxdy], 
+                        [d2f_dxdy, d2f_dy2]])
