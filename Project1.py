@@ -41,7 +41,6 @@
 import numpy as np
 
 class C1Differentiable:
-    """base class for C1-differentiable functions."""
 
     def __init__(self):
         self.__history = []
@@ -64,7 +63,6 @@ class C1Differentiable:
 
 
 class C2Differentiable(C1Differentiable):
-    """base class for C2-differentiable functions."""
 
     def second_derivative(self, x):
         pass
@@ -74,7 +72,6 @@ class C2Differentiable(C1Differentiable):
 
 
 class GradientDescent:
-    """Gradient Descent optimizer."""
 
     def __init__(self, f: C1Differentiable, x0, alpha=0.01, tol=1e-6, max_iter=2000):
         super().__init__()
@@ -137,7 +134,6 @@ class GradientDescent:
 
 
 class GradientDescentNewton:
-    """Gradient Descent optimizer."""
 
     def __init__(self, f: C1Differentiable, x0, tol=1e-6, max_iter=2000):
         super().__init__()
@@ -210,7 +206,6 @@ class GradientDescentNewton:
 
 
 class AdaGrad:
-    """AdaGrad optimizer."""
 
     def __init__(self, f: C1Differentiable, x0, alpha=0.1, tol=1e-6, max_iter=2000):
         super().__init__()
@@ -326,16 +321,28 @@ class Adam:
 
     def optimize(self):
         self.f.clear_history()
-        m = np.zeros_like(self.x); v = np.zeros_like(self.x); t = 0
+
+        m = np.zeros_like(self.x)
+        v = np.zeros_like(self.x)
+        t = 0
+
         for _ in range(self.max_iter):
-            g = self.f.derivative(self.x); y = self.f.forward(self.x); t += 1
+            g = self.f.derivative(self.x)
+            y = self.f.forward(self.x)
+            t += 1
+
             m = self.beta1*m + (1-self.beta1)*g
             v = self.beta2*v + (1-self.beta2)*(g*g)
+
             m_hat = m / (1 - self.beta1**t)
             v_hat = v / (1 - self.beta2**t)
+
             new_x = self.x - self.alpha * m_hat / (np.sqrt(v_hat) + self.eps)
+
             self.f.add_history([self.x[0], self.x[1], y])
-            if abs(self.f.forward(new_x) - y) < self.tol: break
+            if abs(self.f.forward(new_x) - y) < self.tol: 
+                break
+            
             self.x = new_x
         return self.x
 
@@ -346,7 +353,7 @@ class Adam:
 
 
 class ConvexBowl(C2Differentiable):
-    """Convex bowl function."""
+
     def forward(self, x):
         return x[0]**2 + x[1]**2
     def derivative(self, x):
